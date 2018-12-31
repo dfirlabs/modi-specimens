@@ -1,0 +1,2 @@
+MacOS disk image specimens.
+
