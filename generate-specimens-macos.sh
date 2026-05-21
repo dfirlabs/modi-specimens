@@ -2,23 +2,45 @@
 #
 # Script to generate Mac OS disk image test files
 
-EXIT_SUCCESS=0;
-EXIT_FAILURE=1;
+EXIT_SUCCESS=0
+EXIT_FAILURE=1
 
-MACOS_VERSION=`sw_vers -productVersion`;
+# Checks the availability of a binary and exits if not available.
+#
+# Arguments:
+#   a string containing the name of the binary
+#
+assert_availability_binary()
+{
+	local BINARY=$1
 
-if test -d ${MACOS_VERSION};
+	which ${BINARY} > /dev/null 2>&1
+	if test $? -ne ${EXIT_SUCCESS}
+	then
+		echo "Missing binary: ${BINARY}"
+		echo ""
+
+		exit ${EXIT_FAILURE}
+	fi
+}
+
+assert_availability_binary hdiutil
+assert_availability_binary sw_vers
+
+MACOS_VERSION=`sw_vers -productVersion`
+
+if test -d ${MACOS_VERSION}
 then
-	echo "Specimens directory: ${MACOS_VERSION} already exists.";
+	echo "Specimens directory: ${MACOS_VERSION} already exists."
 
-	exit ${EXIT_FAILURE};
+	exit ${EXIT_FAILURE}
 fi
 
-SPECIMENS_PATH="specimens/${MACOS_VERSION}";
+SPECIMENS_PATH="specimens/${MACOS_VERSION}"
 
-mkdir -p ${SPECIMENS_PATH};
+mkdir -p ${SPECIMENS_PATH}
 
-set -e;
+set -e
 
 # New Blank Image options:
 #   SPARSEBUNDLE - sparse bundle disk image
@@ -26,21 +48,21 @@ set -e;
 #   UDIF - read/write disk image
 #   UDTO - DVD/CD master
 
-IMAGE_TYPES=(SPARSEBUNDLE SPARSE UDIF UDTO);
+IMAGE_TYPES=(SPARSEBUNDLE SPARSE UDIF UDTO)
 
-for IMAGE_TYPE in ${IMAGE_TYPES[*]};
+for IMAGE_TYPE in ${IMAGE_TYPES[*]}
 do
-	IMAGE_NAME=`echo ${IMAGE_TYPE} | tr 'A-Z' 'a-z'`;
-	IMAGE_NAME="blank-${IMAGE_NAME}";
-	IMAGE_SIZE="4M";
+	IMAGE_NAME=`echo ${IMAGE_TYPE} | tr 'A-Z' 'a-z'`
+	IMAGE_NAME="blank-${IMAGE_NAME}"
 
-	hdiutil create -size ${IMAGE_SIZE} -type ${IMAGE_TYPE} ${SPECIMENS_PATH}/${IMAGE_NAME};
+	echo "Creating: ${IMAGE_TYPE}"
+	hdiutil create -size "4M" -type ${IMAGE_TYPE} ${SPECIMENS_PATH}/${IMAGE_NAME}
 done
 
 # File System options:
 #   UDF - Universal Disk Format (UDF)
-#   MS-DOS FAT12 - MS-DOS (FAT12)
 #   MS-DOS - MS-DOS (FAT)
+#   MS-DOS FAT12 - MS-DOS (FAT12)
 #   MS-DOS FAT16 - MS-DOS (FAT16)
 #   MS-DOS FAT32 - MS-DOS (FAT32)
 #   HFS+ - Mac OS Extended
@@ -53,22 +75,28 @@ done
 
 # Note that "MS-DOS FAT32" errors with "operation not permitted"
 
-OLDIFS=${IFS};
+OLDIFS=${IFS}
 IFS="
-";
+"
 
-FS_TYPES=("UDF" "MS-DOS FAT12" "MS-DOS" "MS-DOS FAT16" "HFS+" "Case-sensitive HFS+" "Case-sensitive Journaled HFS+" "Journaled HFS+" "ExFAT" "Case-sensitive APFS" "APFS")
+FS_TYPES=("UDF" "MS-DOS FAT12" "MS-DOS" "HFS+" "Case-sensitive HFS+" "Case-sensitive Journaled HFS+" "Journaled HFS+" "ExFAT" "Case-sensitive APFS" "APFS")
 
-for FS_TYPE in ${FS_TYPES[*]};
+for FS_TYPE in ${FS_TYPES[*]}
 do
-	IMAGE_NAME=`echo ${FS_TYPE} | tr 'A-Z' 'a-z' | tr ' ' '_'`;
-	IMAGE_NAME="fs-${IMAGE_NAME}";
-	IMAGE_SIZE="4M";
+	IMAGE_NAME=`echo ${FS_TYPE} | tr 'A-Z' 'a-z' | tr ' ' '_'`
+	IMAGE_NAME="fs-${IMAGE_NAME}"
 
-	hdiutil create -fs ${FS_TYPE} -size ${IMAGE_SIZE} -type UDIF ${SPECIMENS_PATH}/${IMAGE_NAME};
+	echo "Creating: ${FS_TYPE}"
+	hdiutil create -fs ${FS_TYPE} -size "4M" -type UDIF ${SPECIMENS_PATH}/${IMAGE_NAME}
 done
 
-IFS=${OLDIFS};
+echo "Creating: MS-DOS FAT16"
+hdiutil create -fs "MS-DOS FAT16" -size "16M" -type UDIF "${SPECIMENS_PATH}/ms-dos_fat16"
+
+echo "Creating: MS-DOS FAT32"
+hdiutil create -fs "MS-DOS FAT32" -size "64M" -type UDIF "${SPECIMENS_PATH}/ms-dos_fat32"
+
+IFS=${OLDIFS}
 
 # Image from Folder options:
 #   UDRO - read-only
@@ -97,25 +125,25 @@ IFS=${OLDIFS};
 # Note that UDxx, RdWr, Rdxx, ROCo and Rken fail on Big Sur with "function not implemented"
 # Note that DC42 fails.
 
-FORMAT_TYPES=(UDRO UDCO UDZO UDBZ ULFO ULMO UFBI IPOD UDSB UDSP UDRW UDTO UNIV SPARSEBUNDLE SPARSE UDIF);
+FORMAT_TYPES=(UDRO UDCO UDZO UDBZ ULFO ULMO UFBI IPOD UDSB UDSP UDRW UDTO UNIV SPARSEBUNDLE SPARSE UDIF)
 
-SOURCE_FOLDER="srcfolder";
+SOURCE_FOLDER="srcfolder"
 
-rm -rf ${SOURCE_FOLDER};
-mkdir ${SOURCE_FOLDER};
+rm -rf ${SOURCE_FOLDER}
+mkdir ${SOURCE_FOLDER}
 
-cp README.md ${SOURCE_FOLDER};
+cp README.md ${SOURCE_FOLDER}
 
-for FORMAT_TYPE in ${FORMAT_TYPES[*]};
+for FORMAT_TYPE in ${FORMAT_TYPES[*]}
 do
-	IMAGE_NAME=`echo ${FORMAT_TYPE} | tr 'A-Z' 'a-z'`;
-	IMAGE_NAME="folder-${IMAGE_NAME}";
-	IMAGE_SIZE="4M";
+	IMAGE_NAME=`echo ${FORMAT_TYPE} | tr 'A-Z' 'a-z'`
+	IMAGE_NAME="folder-${IMAGE_NAME}"
 
-	hdiutil create -srcfolder ${SOURCE_FOLDER} -size ${IMAGE_SIZE} -format ${FORMAT_TYPE} ${SPECIMENS_PATH}/${IMAGE_NAME};
+	echo "Creating: ${FORMAT_TYPE} of folder"
+	hdiutil create -srcfolder ${SOURCE_FOLDER} -size "4M" -format ${FORMAT_TYPE} ${SPECIMENS_PATH}/${IMAGE_NAME}
 done
 
-rm -rf ${SOURCE_FOLDER};
+rm -rf ${SOURCE_FOLDER}
 
 # Image from Device options:
 #   UDRO - read-only
@@ -136,5 +164,4 @@ rm -rf ${SOURCE_FOLDER};
 #   ROCo - NDIF compressed
 #   Rken - NDIF compressed (KenCode)
 
-exit ${EXIT_SUCCESS};
-
+exit ${EXIT_SUCCESS}
